@@ -13,6 +13,33 @@ Globals:
     Tracing: Active
   Api:
     TracingEnabled: true
+Parameters:
+  VpcSubnet:
+    Type: AWS::SSM::Parameter::Value<List<AWS::EC2::Subnet::Id>>
+    Description: SSM Parameter store key of type StringList with the list of VPC Subnet to be used by Lambda function
+    Default: /sam/vpcSubnetsProd
+  VpcSg:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::SecurityGroup::Id>
+    Description: SSM Parameter store key of type String with the VPC Security Group to be used by Lambda function
+    Default: /sam/vpcSgProd
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+  ExcelFileName:
+    Type: String
+    Description: Empire Wine's Excel File Name for Query output
+    Default: empireWines.xlsx
+  SqlTableName:
+    Type: String
+    Description: SQL Table name for Empire Wine's DataBrew query
+    Default: EmpireWines_Snapshot
+
+Conditions:
+  IsTestOnlyResource:
+    !Equals [ !Ref Environment, dev ]
+
 Resources:
   VirtualFeedEmpireWinesStateMachineEventRole:
     Type: AWS::IAM::Role
@@ -74,6 +101,34 @@ Resources:
                 Resource: '*'
       RoleName: !Sub VirtualFeedEmpireWinesStateMachineRole_${Environment}
 
+  VirtualFeedEmpireWinesDataBrewRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - databrew.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: VirtualFeedEmpireWinesDataBrewPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:*
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${VirtualFeedEmpireWinesOutputS3}
+                  - !Sub arn:${AWS::Partition}:s3:::${VirtualFeedEmpireWinesOutputS3}/*
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueDataBrewServiceRole
+      RoleName: !Sub VirtualFeedEmpireWinesDataBrewRole_${Environment}
+
   VirtualFeedEmpireWinesStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -129,6 +184,77 @@ Resources:
               - !Ref VirtualFeedEmpireWinesStateMachineErrorTopic
       Topics:
         - !Ref VirtualFeedEmpireWinesStateMachineErrorTopic
+
+  VirtualFeedEmpireWinesDataBrewProject:
+    DependsOn:
+      - VirtualFeedEmpireWinesDataBrewDataSet
+    Type: AWS::DataBrew::Project
+    Properties:
+      Name: !Sub virtualFeed-empirewines-databrew-project-${Environment}
+      DatasetName: !Ref VirtualFeedEmpireWinesDataBrewDataSet
+      RecipeName: !Ref VirtualFeedEmpireWinesDataBrewRecipe
+      RoleArn: !GetAtt VirtualFeedEmpireWinesDataBrewRole.Arn
+
+  VirtualFeedEmpireWinesDataBrewRecipe:
+    Type: AWS::DataBrew::Recipe
+    Properties:
+      Name: !Sub virtualFeed-empirewines-databrew-recipe-${Environment}
+      Steps:
+        - Action:
+            Operation: SORT
+            Parameters:
+              expressions: >-
+                [{"sourceColumn":"SKU","ordering":"ASCENDING","nullsOrdering":"NULLS_BOTTOM","customOrder":[]}]
+
+  VirtualFeedEmpireWinesDataBrewJob:
+    DependsOn:
+      - VirtualFeedEmpireWinesDataBrewProject
+    Type: AWS::DataBrew::Job
+    Properties:
+      Name: !Sub virtualFeed-empirewines-databrew-job-${Environment}
+      ProjectName: !Ref VirtualFeedEmpireWinesDataBrewProject
+      LogSubscription: ENABLE
+      Outputs:
+        - Format: CSV
+          FormatOptions:
+            Csv:
+              Delimiter: ","
+          Location:
+            Bucket: !Ref VirtualFeedEmpireWinesOutputS3
+          MaxOutputFiles: 1
+          Overwrite: True
+      RoleArn: !GetAtt VirtualFeedEmpireWinesDataBrewRole.Arn
+      Type: RECIPE
+      MaxCapacity: 2
+
+  VirtualFeedEmpireWinesDataBrewDataSet:
+    Type: AWS::DataBrew::Dataset
+    Properties:
+      Name: !Sub virtualFeed-empirewines-databrew-dataset-${Environment}
+      Input:
+        DatabaseInputDefinition:
+          DatabaseTableName: !Ref SqlTableName
+          GlueConnectionName: MSSQL-POL
+
+  VirtualFeedEmpireWinesExcelConvertFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/ExcelConvertFunction/
+      Role: !GetAtt VirtualFeedEmpireWinesExcelConvertFunctionRole.Arn
+      FunctionName: !Sub VirtualFeedEmpireWinesExcelConvertFunction_${Environment}
+      Layers:
+        - arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311:9
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref VirtualFeedEmpireWinesOutputS3
+          FILE_NAME: !Sub ${VirtualFeedEmpireWinesDataBrewJob}_part00000.csv
+          FILE_NAME_EXPORT: !Ref ExcelFileName
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      LoggingConfig:
+        LogGroup: !Ref VirtualFeedEmpireWinesExcelConvertFunctionLogGroup
+      Architectures:
+        - x86_64
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
