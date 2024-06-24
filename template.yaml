@@ -256,6 +256,26 @@ Resources:
       Architectures:
         - x86_64
 
+  VirtualFeedEmpireWinesEmailFileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/ExcelEmailFunction/
+      Role: !GetAtt VirtualFeedEmpireWinesExcelConvertFunctionRole.Arn
+      FunctionName: !Sub VirtualFeedEmpireWinesExcelConvertFunction_${Environment}
+      Layers:
+        - arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311:9
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref VirtualFeedEmpireWinesOutputS3
+          FILE_NAME: !Sub ${VirtualFeedEmpireWinesDataBrewJob}_part00000.csv
+          FILE_NAME_EXPORT: !Ref ExcelFileName
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      LoggingConfig:
+        LogGroup: !Ref VirtualFeedEmpireWinesExcelConvertFunctionLogGroup
+      Architectures:
+        - x86_64
+
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
