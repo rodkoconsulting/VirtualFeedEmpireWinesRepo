@@ -4,7 +4,7 @@ import pandas as pd
 import openpyxl
 
 s3_bucket = os.environ.get('BUCKET_NAME')
-file_name_csv = os.environ.get('FILENAME_CSV')
+file_name_csv = os.environ.get('FILENAME_IMPORT')
 file_name_xlsx = os.environ.get('FILENAME_EXPORT')
 
 

@@ -31,10 +31,31 @@ Parameters:
     Type: String
     Description: Empire Wine's Excel File Name for Query output
     Default: empireWines.xlsx
+  EmailFileName:
+    Type: String
+    Description: Empire Wine's File Name for Email attachment
+    Default: "NY Products.xlsx"
+  EmailAddressCc:
+    Type: String
+    Description: Empire Wine's Email CC address
+    Default: customerservice@polanerselections.com
+  EmailAddressTo:
+    Type: String
+    Description: Empire Wine's Email To address
+    Default: criley@polanerselections.com
+  EmailAddressFrom:
+    Type: String
+    Description: Empire Wine's Email From address
+    Default: customerservice@polanerselections.com
+  EmailSubject:
+    Type: String
+    Description: Empire Wine's Email Subject
+    Default: "NY Products"
   SqlTableName:
     Type: String
     Description: SQL Table name for Empire Wine's DataBrew query
     Default: EmpireWines_Snapshot
+
 
 Conditions:
   IsTestOnlyResource:
@@ -247,7 +268,7 @@ Resources:
       Environment:
         Variables:
           BUCKET_NAME: !Ref VirtualFeedEmpireWinesOutputS3
-          FILE_NAME: !Sub ${VirtualFeedEmpireWinesDataBrewJob}_part00000.csv
+          FILE_NAME_IMPORT: !Sub ${VirtualFeedEmpireWinesDataBrewJob}_part00000.csv
           FILE_NAME_EXPORT: !Ref ExcelFileName
       Handler: app.lambda_handler
       Runtime: python3.11
@@ -267,8 +288,12 @@ Resources:
       Environment:
         Variables:
           BUCKET_NAME: !Ref VirtualFeedEmpireWinesOutputS3
-          FILE_NAME: !Sub ${VirtualFeedEmpireWinesDataBrewJob}_part00000.csv
-          FILE_NAME_EXPORT: !Ref ExcelFileName
+          FILE_NAME: !Ref ExcelFileName
+          EMAIL_ATTACHMENT: !Ref EmailFileName
+          EMAIL_CC: !Ref EmailAddressCc
+          EMAIL_TO: !Ref EmailAddressTo
+          EMAIL_FROM: !Ref EmailAddressFrom
+          EMAIL_SUBJECT: !Ref EmailSubject
       Handler: app.lambda_handler
       Runtime: python3.11
       LoggingConfig:
