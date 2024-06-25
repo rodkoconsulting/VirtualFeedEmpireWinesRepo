@@ -21,13 +21,13 @@
           "BackoffRate": 2
         }
       ],
-      "Next": "Convert CSV to Excel"
+      "Next": "SQL Query and Export to Excel"
     },
-    "Convert CSV to Excel": {
+    "SQL Query and Export to Excel": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${LambdaExcelConvertFunctionName}"
+        "FunctionName": "${LambdaSqlQueryExportFunctionName}"
       },
       "Retry": [
         {

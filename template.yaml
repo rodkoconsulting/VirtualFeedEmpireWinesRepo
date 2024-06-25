@@ -9,7 +9,6 @@ Description: >
 Globals:
   Function:
     Timeout: 3
-
     Tracing: Active
   Api:
     TracingEnabled: true
@@ -114,13 +113,6 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - databrew:startJobRun
-                  - databrew:listJobRuns
-                  - databrew:stopJobRun
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:databrew:${AWS::Region}:${AWS::AccountId}:job/${VirtualFeedEmpireWinesDataBrewJob}"
-              - Effect: Allow
-                Action:
                   - cloudwatch:PutMetricData
                 Resource: '*'
               - Effect: Allow
@@ -137,6 +129,7 @@ Resources:
       DefinitionUri: statemachine/virtual_feed_empirewines.asl.json
       DefinitionSubstitutions:
         LambdaSqlProcSnapshotFunctionName: !Ref VirtualFeedEmpireWinesSqlProcSnapshotFunction
+        LambdaSqlQueryExportFunctionName: !Ref VirtualFeedEmpireWinesSqlQueryExportFunction
         LambdaEmailFileFunctionName: !Ref VirtualFeedEmpireWinesEmailFileFunction
       Role: !GetAtt VirtualFeedEmpireWinesStateMachineRole.Arn
 
@@ -185,6 +178,42 @@ Resources:
       Topics:
         - !Ref VirtualFeedEmpireWinesStateMachineErrorTopic
 
+  VirtualFeedEmpireWinesEmailFileFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: VirtualFeedEmpireWinesEmailFileFunctionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:*
+                  - s3-object-lambda:*
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${VirtualFeedEmpireWinesOutputS3}
+                  - !Sub arn:${AWS::Partition}:s3:::${VirtualFeedEmpireWinesOutputS3}/*
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSESFullAccess
+      RoleName:
+        !Sub VirtualFeedEmpireWinesEmailFileFunctionRole_${Environment}
+
   VirtualFeedEmpireWinesEmailFileFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -206,6 +235,12 @@ Resources:
         LogGroup: !Ref VirtualFeedEmpireWinesEmailFileFunctionLogGroup
       Architectures:
         - x86_64
+
+  VirtualFeedEmpireWinesEmailFileFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/VirtualFeedEmpireWinesSqlProcSnapshotFunctionLogGroup_${Environment}
+      RetentionInDays: 7
 
   VirtualFeedEmpireWinesSqlProcSnapshotFunctionRole:
     Type: AWS::IAM::Role
