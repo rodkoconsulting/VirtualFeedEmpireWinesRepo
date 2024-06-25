@@ -51,11 +51,18 @@ Parameters:
     Type: String
     Description: Empire Wine's Email Subject
     Default: "NY Products"
-  SqlTableName:
+  SqlConnection:
     Type: String
-    Description: SQL Table name for Empire Wine's DataBrew query
-    Default: EmpireWines_Snapshot
-
+    Description: SQL Connection String
+    Default: "/sql/connection_string/odbc_18/portal23"
+  SqlSnapshotProcedure:
+    Type: String
+    Description: Empire Wine's SQL Procedure to take data snapshot
+    Default: "[POL].[dbo].[EmpireWines_CreateSnapshot]"
+  SqlQueryProcedure:
+    Type: String
+    Description: Empire Wine's SQL Procedure to query data snapshot
+    Default: "[POL].[dbo].[EmpireWines_QuerySnapshot]"
 
 Conditions:
   IsTestOnlyResource:
@@ -122,33 +129,6 @@ Resources:
                 Resource: '*'
       RoleName: !Sub VirtualFeedEmpireWinesStateMachineRole_${Environment}
 
-  VirtualFeedEmpireWinesDataBrewRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - databrew.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: /
-      Policies:
-        - PolicyName: VirtualFeedEmpireWinesDataBrewPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:*
-                Resource:
-                  - !Sub arn:${AWS::Partition}:s3:::${VirtualFeedEmpireWinesOutputS3}
-                  - !Sub arn:${AWS::Partition}:s3:::${VirtualFeedEmpireWinesOutputS3}/*
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSGlueDataBrewServiceRole
-      RoleName: !Sub VirtualFeedEmpireWinesDataBrewRole_${Environment}
 
   VirtualFeedEmpireWinesStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -156,8 +136,7 @@ Resources:
       Name: !Sub VirtualFeedEmpireWinesStateMachine_${Environment}
       DefinitionUri: statemachine/virtual_feed_empirewines.asl.json
       DefinitionSubstitutions:
-        GlueDataBrewQueryJobName: !Ref VirtualFeedEmpireWinesDataBrewJob
-        LambdaExcelConvertFunctionName: !Ref VirtualFeedEmpireWinesExcelConvertFunction
+        LambdaSqlProcSnapshotFunctionName: !Ref VirtualFeedEmpireWinesSqlProcSnapshotFunction
         LambdaEmailFileFunctionName: !Ref VirtualFeedEmpireWinesEmailFileFunction
       Role: !GetAtt VirtualFeedEmpireWinesStateMachineRole.Arn
 
@@ -206,85 +185,12 @@ Resources:
       Topics:
         - !Ref VirtualFeedEmpireWinesStateMachineErrorTopic
 
-  VirtualFeedEmpireWinesDataBrewProject:
-    DependsOn:
-      - VirtualFeedEmpireWinesDataBrewDataSet
-    Type: AWS::DataBrew::Project
-    Properties:
-      Name: !Sub virtualFeed-empirewines-databrew-project-${Environment}
-      DatasetName: !Ref VirtualFeedEmpireWinesDataBrewDataSet
-      RecipeName: !Ref VirtualFeedEmpireWinesDataBrewRecipe
-      RoleArn: !GetAtt VirtualFeedEmpireWinesDataBrewRole.Arn
-
-  VirtualFeedEmpireWinesDataBrewRecipe:
-    Type: AWS::DataBrew::Recipe
-    Properties:
-      Name: !Sub virtualFeed-empirewines-databrew-recipe-${Environment}
-      Steps:
-        - Action:
-            Operation: SORT
-            Parameters:
-              expressions: >-
-                [{"sourceColumn":"SKU","ordering":"ASCENDING","nullsOrdering":"NULLS_BOTTOM","customOrder":[]}]
-
-  VirtualFeedEmpireWinesDataBrewJob:
-    DependsOn:
-      - VirtualFeedEmpireWinesDataBrewProject
-    Type: AWS::DataBrew::Job
-    Properties:
-      Name: !Sub virtualFeed-empirewines-databrew-job-${Environment}
-      ProjectName: !Ref VirtualFeedEmpireWinesDataBrewProject
-      LogSubscription: ENABLE
-      Outputs:
-        - Format: CSV
-          FormatOptions:
-            Csv:
-              Delimiter: ","
-          Location:
-            Bucket: !Ref VirtualFeedEmpireWinesOutputS3
-          MaxOutputFiles: 1
-          Overwrite: True
-      RoleArn: !GetAtt VirtualFeedEmpireWinesDataBrewRole.Arn
-      Type: RECIPE
-      MaxCapacity: 2
-
-  VirtualFeedEmpireWinesDataBrewDataSet:
-    Type: AWS::DataBrew::Dataset
-    Properties:
-      Name: !Sub virtualFeed-empirewines-databrew-dataset-${Environment}
-      Input:
-        DatabaseInputDefinition:
-          DatabaseTableName: !Ref SqlTableName
-          GlueConnectionName: MSSQL-POL
-
-  VirtualFeedEmpireWinesExcelConvertFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: functions/ExcelConvertFunction/
-      Role: !GetAtt VirtualFeedEmpireWinesExcelConvertFunctionRole.Arn
-      FunctionName: !Sub VirtualFeedEmpireWinesExcelConvertFunction_${Environment}
-      Layers:
-        - arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311:9
-      Environment:
-        Variables:
-          BUCKET_NAME: !Ref VirtualFeedEmpireWinesOutputS3
-          FILE_NAME_IMPORT: !Sub ${VirtualFeedEmpireWinesDataBrewJob}_part00000.csv
-          FILE_NAME_EXPORT: !Ref ExcelFileName
-      Handler: app.lambda_handler
-      Runtime: python3.11
-      LoggingConfig:
-        LogGroup: !Ref VirtualFeedEmpireWinesExcelConvertFunctionLogGroup
-      Architectures:
-        - x86_64
-
   VirtualFeedEmpireWinesEmailFileFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/ExcelEmailFunction/
-      Role: !GetAtt VirtualFeedEmpireWinesExcelConvertFunctionRole.Arn
-      FunctionName: !Sub VirtualFeedEmpireWinesExcelConvertFunction_${Environment}
-      Layers:
-        - arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311:9
+      Role: !GetAtt VirtualFeedEmpireWinesEmailFileFunctionRole.Arn
+      FunctionName: !Sub VirtualFeedEmpireWinesEmailFileFunction_${Environment}
       Environment:
         Variables:
           BUCKET_NAME: !Ref VirtualFeedEmpireWinesOutputS3
@@ -297,9 +203,142 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.11
       LoggingConfig:
-        LogGroup: !Ref VirtualFeedEmpireWinesExcelConvertFunctionLogGroup
+        LogGroup: !Ref VirtualFeedEmpireWinesEmailFileFunctionLogGroup
       Architectures:
         - x86_64
+
+  VirtualFeedEmpireWinesSqlProcSnapshotFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: VirtualFeedEmpireWinesSqlProcSnapshotFunctionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                  - lambda:InvokeFunction
+                Resource: '*'
+      RoleName: !Sub VirtualFeedEmpireWinesSqlProcSnapshotFunctionRole_${Environment}
+
+  VirtualFeedEmpireWinesSqlProcSnapshotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/SqlProcSnapshotFunction/
+      Role: !GetAtt VirtualFeedEmpireWinesSqlProcSnapshotFunctionRole.Arn
+      FunctionName: !Sub VirtualFeedEmpireWinesSqlProcSnapshotFunction_${Environment}
+      Layers:
+        - arn:aws:lambda:us-east-1:424371521123:layer:pyodbc-311:4
+      Environment:
+        Variables:
+          SQL_CONNECTION: !Ref SqlConnection
+          SQL_PROC: !Ref SqlSnapshotProcedure
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      VpcConfig:
+        SubnetIds: !Ref VpcSubnet
+        SecurityGroupIds:
+          - !Ref VpcSg
+      LoggingConfig:
+        LogGroup: !Ref VirtualFeedEmpireWinesSqlProcSnapshotFunctionLogGroup
+      Architectures:
+        - x86_64
+
+  VirtualFeedEmpireWinesSqlProcSnapshotFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/VirtualFeedEmpireWinesSqlProcSnapshotFunctionLogGroup_${Environment}
+      RetentionInDays: 7
+
+  VirtualFeedEmpireWinesSqlQueryExportFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: VirtualFeedEmpireWinesSqlQueryExportFunctionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                  - lambda:InvokeFunction
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:*
+                  - s3-object-lambda:*
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${VirtualFeedEmpireWinesOutputS3}
+                  - !Sub arn:${AWS::Partition}:s3:::${VirtualFeedEmpireWinesOutputS3}/*
+      RoleName:
+        !Sub VirtualFeedEmpireWinesSqlQueryExportFunctionRole_${Environment}
+
+  VirtualFeedEmpireWinesSqlQueryExportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/SqlQueryExportFunction/
+      Role: !GetAtt VirtualFeedEmpireWinesSqlProcSnapshotFunctionRole.Arn
+      FunctionName: !Sub VirtualFeedEmpireWinesSqlProcSnapshotFunction_${Environment}
+      Layers:
+        - arn:aws:lambda:us-east-1:424371521123:layer:pyodbc-311:4
+        - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p311-pandas:10
+      Environment:
+        Variables:
+          SQL_CONNECTION: !Ref SqlConnection
+          SQL_PROC: !Ref SqlQueryProcedure
+          FILE_NAME: !Ref ExcelFileName
+          BUCKET_NAME: !Ref VirtualFeedEmpireWinesOutputS3
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      VpcConfig:
+        SubnetIds: !Ref VpcSubnet
+        SecurityGroupIds:
+          - !Ref VpcSg
+      LoggingConfig:
+        LogGroup: !Ref VirtualFeedEmpireWinesSqlQueryExportLogGroup
+      Architectures:
+        - x86_64
+
+  VirtualFeedEmpireWinesSqlQueryExportFunctionLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: !Sub /aws/lambda/VirtualFeedEmpireWinesSqlQueryExportFunctionLogGroup_${Environment}
+        RetentionInDays: 7
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
