@@ -8,7 +8,7 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 300
     Tracing: Active
   Api:
     TracingEnabled: true
@@ -374,6 +374,16 @@ Resources:
       Properties:
         LogGroupName: !Sub /aws/lambda/VirtualFeedEmpireWinesSqlQueryExportFunctionLogGroup_${Environment}
         RetentionInDays: 7
+
+  VirtualFeedEmpireWinesOutputS3:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub polaner-virtual-feed-empirewines-output-${Environment}
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteContentAfter6Months
+            Status: 'Enabled'
+            ExpirationInDays: 180
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
