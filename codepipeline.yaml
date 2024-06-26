@@ -42,6 +42,9 @@ Parameters:
   TestingStackName:
     Type: String
     Default: "VirtualFeedEmpireWinesStack-Dev"
+  TestingEnvironment:
+    Type: String
+    Default: "dev"
   TestingPipelineExecutionRole:
     Type: String
     Default: "arn:aws:iam::424371521123:role/aws-sam-cli-managed-dev-pipel-PipelineExecutionRole-BnpLaAtyP0yj"
@@ -63,6 +66,9 @@ Parameters:
   ProdStackName:
     Type: String
     Default: "VirtualFeedEmpireWinesStack-Prod"
+  ProdEnvironment:
+    Type: String
+    Default: "prod"
   ProdPipelineExecutionRole:
     Type: String
     Default: "arn:aws:iam::424371521123:role/aws-sam-cli-managed-prod-pipe-PipelineExecutionRole-DqP7xsedEfcr"
@@ -275,6 +281,7 @@ Resources:
                       {"name": "ENV_TEMPLATE", "value": "packaged-test.yaml"},
                       {"name": "ENV_REGION", "value": "${TestingRegion}"},
                       {"name": "ENV_STACK_NAME", "value": "${TestingStackName}"},
+                      {"name": "ENV_ENVIRONMENT", "value": "${TestingEnvironment}"},
                       {"name": "ENV_PIPELINE_EXECUTION_ROLE", "value": "${TestingPipelineExecutionRole}"},
                       {"name": "ENV_CLOUDFORMATION_EXECUTION_ROLE", "value": "${TestingCloudFormationExecutionRole}"},
                       {"name": "ENV_BUCKET", "value": "${TestingArtifactBucket}"},
@@ -323,6 +330,7 @@ Resources:
                       {"name": "ENV_TEMPLATE", "value": "packaged-prod.yaml"},
                       {"name": "ENV_REGION", "value": "${ProdRegion}"},
                       {"name": "ENV_STACK_NAME", "value": "${ProdStackName}"},
+                      {"name": "ENV_ENVIRONMENT", "value": "${ProdEnvironment}"},
                       {"name": "ENV_PIPELINE_EXECUTION_ROLE", "value": "${ProdPipelineExecutionRole}"},
                       {"name": "ENV_CLOUDFORMATION_EXECUTION_ROLE", "value": "${ProdCloudFormationExecutionExeRole}"},
                       {"name": "ENV_BUCKET", "value": "${ProdArtifactBucket}"},
