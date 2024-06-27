@@ -239,7 +239,7 @@ Resources:
   VirtualFeedEmpireWinesEmailFileFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/VirtualFeedEmpireWinesSqlProcSnapshotFunctionLogGroup_${Environment}
+      LogGroupName: !Sub /aws/lambda/VirtualFeedEmpireWinesEmailFileFunctionLogGroup_${Environment}
       RetentionInDays: 7
 
   VirtualFeedEmpireWinesSqlProcSnapshotFunctionRole:
