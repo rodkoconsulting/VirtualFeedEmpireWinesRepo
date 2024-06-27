@@ -347,8 +347,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/SqlQueryExportFunction/
-      Role: !GetAtt VirtualFeedEmpireWinesSqlProcSnapshotFunctionRole.Arn
-      FunctionName: !Sub VirtualFeedEmpireWinesSqlProcSnapshotFunction_${Environment}
+      Role: !GetAtt VirtualFeedEmpireWinesSqlQueryExportFunctionRole.Arn
+      FunctionName: !Sub VirtualFeedEmpireWinesSqlQueryExportFunction_${Environment}
       Layers:
         - arn:aws:lambda:us-east-1:424371521123:layer:pyodbc-311:4
         - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p311-pandas:10
