@@ -365,7 +365,7 @@ Resources:
         SecurityGroupIds:
           - !Ref VpcSg
       LoggingConfig:
-        LogGroup: !Ref VirtualFeedEmpireWinesSqlQueryExportLogGroup
+        LogGroup: !Ref VirtualFeedEmpireWinesSqlQueryExportFunctionLogGroup
       Architectures:
         - x86_64
 
