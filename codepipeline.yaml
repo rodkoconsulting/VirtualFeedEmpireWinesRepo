@@ -314,7 +314,7 @@ Resources:
                   Owner: AWS
                   Provider: Manual
                   Version: "1"
-                  RunOrder: 1
+                RunOrder: 1
               - Name: DeleteTestStack
                 ActionTypeId:
                   Category: Deploy
@@ -325,7 +325,7 @@ Resources:
                   ActionMode: DELETE_ONLY
                   StackName: !Sub ${TestingStackName}
                   RoleArn: !GetAtt PipelineStackCloudFormationExecutionRole.Arn
-                  RunOrder: 2
+                RunOrder: 2
               - Name: DeployProd
                 ActionTypeId:
                   Category: Build
