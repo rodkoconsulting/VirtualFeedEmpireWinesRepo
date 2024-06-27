@@ -3,6 +3,7 @@ import pyodbc
 import boto3
 import os
 import pandas as pd
+import openpyxl
 
 SQL_CONNECTION = os.environ.get('SQL_CONNECTION')
 SQL_PROC = os.environ.get('SQL_PROC')
