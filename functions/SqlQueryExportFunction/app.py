@@ -5,15 +5,18 @@ import os
 import pandas as pd
 import openpyxl
 
-SQL_CONNECTION = os.environ.get('SQL_CONNECTION')
-SQL_PROC = os.environ.get('SQL_PROC')
-FILE_NAME = os.environ.get('FILE_NAME')
-BUCKET_NAME = os.environ.get('BUCKET_NAME')
+
+class Config:
+    SQL_CONNECTION = os.environ.get('SQL_CONNECTION')
+    SQL_PROC = os.environ.get('SQL_PROC')
+    FILE_NAME = os.environ.get('FILE_NAME')
+    BUCKET_NAME = os.environ.get('BUCKET_NAME')
+    FILE_PATH = '/tmp/' + FILE_NAME
 
 
 def get_connection_string_from_parameter_store():
     lambda_client = boto3.client('lambda')
-    lambda_client_parameter = {"Name": SQL_CONNECTION}
+    lambda_client_parameter = {"Name": Config.SQL_CONNECTION}
     lambda_response = lambda_client.invoke(FunctionName="getParameterStoreValue", InvocationType='RequestResponse',
                                            Payload=json.dumps(lambda_client_parameter))
     return json.load(lambda_response['Payload'])
@@ -22,12 +25,12 @@ def get_connection_string_from_parameter_store():
 def get_sql_connection():
     sql_connection_string = get_connection_string_from_parameter_store()
     sql_connection = pyodbc.connect(sql_connection_string)
-    sql_query = f'EXEC {SQL_PROC}'
+    sql_query = f'EXEC {Config.SQL_PROC}'
     return sql_connection, sql_query
 
 
 def excel_export(df):
-    df.to_excel(FILE_NAME, index=False)
+    df.to_excel(Config.FILE_PATH, index=False)
 
 
 def data_clean(df):
@@ -39,7 +42,7 @@ def data_clean(df):
 
 def s3_upload():
     s3 = boto3.client('s3')
-    s3.upload_file('/tmp/' + FILE_NAME, BUCKET_NAME, FILE_NAME)
+    s3.upload_file(Config.FILE_PATH, Config.BUCKET_NAME, Config.FILE_NAME)
 
 
 def sql_query_and_excel_export():
