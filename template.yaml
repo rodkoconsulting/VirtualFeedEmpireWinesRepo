@@ -53,7 +53,7 @@ Parameters:
   SqlConnection:
     Type: String
     Description: SQL Connection String
-    Default: "/sql/connection_string/odbc_18/portal23"
+    Default: "/sql/connection_string/odbc_18/portal"
   SqlSnapshotProcedure:
     Type: String
     Description: Empire Wine's SQL Procedure to take data snapshot
