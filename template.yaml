@@ -164,7 +164,7 @@ Resources:
             Name: !Sub VirtualFeedEmpireWinesStateMachine_${Environment}
             Description: Schedule to execute Empire Wines Virtual Feed State Machine on the 22nd of the month at 6am EST
             RoleArn: !GetAtt VirtualFeedEmpireWinesStateMachineSchedulerRole.Arn
-            ScheduleExpression: "cron(6 0 22 * ? *)"
+            ScheduleExpression: "cron(0 6 22 * ? *)"
             ScheduleExpressionTimezone: "America/New_York"
             FlexibleTimeWindow:
               Mode: FLEXIBLE
