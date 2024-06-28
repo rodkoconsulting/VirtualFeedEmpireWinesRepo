@@ -351,7 +351,7 @@ Resources:
       FunctionName: !Sub VirtualFeedEmpireWinesSqlQueryExportFunction_${Environment}
       Layers:
         - arn:aws:lambda:us-east-1:424371521123:layer:pyodbc-311:4
-        - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p311-pandas:10
+        - arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311:9
       Environment:
         Variables:
           SQL_CONNECTION: !Ref SqlConnection
