@@ -68,6 +68,31 @@ Conditions:
     !Equals [ !Ref Environment, dev ]
 
 Resources:
+  VirtualFeedEmpireWinesStateMachineSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - scheduler.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: VirtualFeedEmpireWinesStateMachineSchedulerPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:VirtualFeedEmpireWinesStateMachine_${Environment}"
+      RoleName: !Sub VirtualFeedEmpireWinesStateMachineSchedulerRole_${Environment}
+
   VirtualFeedEmpireWinesStateMachineEventRole:
     Type: AWS::IAM::Role
     Properties:
@@ -132,6 +157,21 @@ Resources:
         LambdaSqlQueryExportFunctionName: !Ref VirtualFeedEmpireWinesSqlQueryExportFunction
         LambdaEmailFileFunctionName: !Ref VirtualFeedEmpireWinesEmailFileFunction
       Role: !GetAtt VirtualFeedEmpireWinesStateMachineRole.Arn
+      Events:
+        ScheduleStateMachine:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub VirtualFeedEmpireWinesStateMachine_${Environment}
+            Description: Schedule to execute Empire Wines Virtual Feed State Machine on the 22nd of the month at 6am EST
+            RoleArn: !GetAtt VirtualFeedEmpireWinesStateMachineSchedulerRole.Arn
+            ScheduleExpression: "cron(6 0 22 * ? *)"
+            ScheduleExpressionTimezone: "America/New_York"
+            FlexibleTimeWindow:
+              Mode: FLEXIBLE
+              MaximumWindowInMinutes: 15
+            RetryPolicy:
+              MaximumRetryAttempts: 5
+              MaximumEventAgeInSeconds: 900
 
   VirtualFeedEmpireWinesStateMachineFailureEventRule:
     Type: AWS::Events::Rule
