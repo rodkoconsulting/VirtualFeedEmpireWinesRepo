@@ -317,6 +317,8 @@ Resources:
                   Owner: AWS
                   Provider: Manual
                   Version: "1"
+                Configuration:
+                  NotificationArn: !Ref ManualApprovalNotificationArn
                 RunOrder: 1
               - Name: DeleteTestStack
                 ActionTypeId:
